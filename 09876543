@@ -1,0 +1,146 @@
+package main;
+
+import dao.FoodDaoImpl;
+import service.FoodService;
+import pojo.FoodPojo;
+import pojo.IngredientPojo;
+
+import java.util.List;
+import java.util.Scanner;
+
+public class MainApp {
+    public static void main(String[] args) {
+
+        FoodService service = new FoodService(new FoodDaoImpl());
+        Scanner sc = new Scanner(System.in);
+        boolean exit = false;
+
+        while (!exit) {
+            System.out.println("""
+                    ===== Food Management System =====
+                    1. Add Dish
+                    2. Get All Dishes
+                    3. Get Dish By Id
+                    4. Update Dish Price By Id
+                    5. Delete Dish By Id
+                    6. Sort by Popularity
+                    7. Filter By Cuisine
+                    8. Filter By Vegetarian
+                    9. Count of Dishes in Cuisine
+                    10. Add Ingredient
+                    11. Add Ingredient To Dish
+                    12. Get Ingredients of Dish
+                    13. Exit
+                    """);
+
+            System.out.print("Enter choice: ");
+            int choice = sc.nextInt();
+            sc.nextLine();
+
+            switch (choice) {
+                case 1 -> {
+                    System.out.print("Dish Name: ");
+                    String name = sc.nextLine();
+                    System.out.print("Dish Id: ");
+                    String id = sc.nextLine();
+                    System.out.print("Cuisine: ");
+                    String cuisine = sc.nextLine();
+                    System.out.print("Price: ");
+                    double price = sc.nextDouble();
+                    System.out.print("Vegetarian(true/false): ");
+                    boolean veg = sc.nextBoolean();
+                    System.out.print("Popularity (0-100): ");
+                    int pop = sc.nextInt();
+                    service.addDish(new FoodPojo(name, id, cuisine, price, veg, pop));
+                    System.out.println("Dish added.\n");
+                }
+                case 2 -> {
+                    List<FoodPojo> list = service.getAllDishes();
+                    for (FoodPojo d : list) {
+                        System.out.println(d);
+                    }
+                }
+                case 3 -> {
+                    System.out.print("Enter Id: ");
+                    String id = sc.nextLine().trim();
+                    FoodPojo dish = service.getDishById(id);
+                    if (dish != null) System.out.println(dish);
+                    else System.out.println("Dish not found.");
+                }
+                case 4 -> {
+                    System.out.print("Enter Id: ");
+                    String id = sc.nextLine().trim();
+                    System.out.print("Enter new Price: ");
+                    double newPrice = sc.nextDouble();
+                    service.updateDishPrice(id, newPrice);
+                    System.out.println("Price updated.");
+                }
+                case 5 -> {
+                    System.out.print("Enter Id: ");
+                    String id = sc.nextLine().trim();
+                    service.deleteDishById(id);
+                    System.out.println("Dish deleted.");
+                }
+                case 6 -> {
+                    List<FoodPojo> sorted = service.sortByPopularity();
+                    for (FoodPojo d : sorted) {
+                        System.out.println(d);
+                    }
+                }
+                case 7 -> {
+                    System.out.print("Enter Cuisine: ");
+                    String cuisine = sc.nextLine().trim();
+                    List<FoodPojo> list = service.filterByCuisine(cuisine);
+                    for (FoodPojo d : list) {
+                        System.out.println(d);
+                    }
+                }
+                case 8 -> {
+                    System.out.print("Vegetarian only? (true/false): ");
+                    boolean veg = sc.nextBoolean();
+                    List<FoodPojo> list = service.filterByVeg(veg);
+                    for (FoodPojo d : list) {
+                        System.out.println(d);
+                    }
+                }
+                case 9 -> {
+                    System.out.print("Enter Cuisine: ");
+                    String cuisine = sc.nextLine().trim();
+                    long count = service.countOfCuisine(cuisine);
+                    System.out.println("Count = " + count);
+                }
+                case 10 -> {
+                    System.out.print("Ingredient Id: ");
+                    String ingId = sc.nextLine().trim();
+                    System.out.print("Ingredient Name: ");
+                    String ingName = sc.nextLine();
+                    service.addIngredient(new IngredientPojo(ingId, ingName));
+                    System.out.println("Ingredient added.");
+                }
+                case 11 -> {
+                    System.out.print("Dish Id: ");
+                    String dId = sc.nextLine().trim();
+                    System.out.print("Ingredient Id: ");
+                    String iId = sc.nextLine().trim();
+                    service.addIngredientToDish(dId, iId);
+                    System.out.println("Ingredient mapped to dish.");
+                }
+                case 12 -> {
+                    System.out.print("Dish Id: ");
+                    String dId = sc.nextLine().trim();
+                    List<IngredientPojo> ings = service.getIngredientsByDish(dId);
+                    if (ings.isEmpty()) {
+                        System.out.println("No ingredients found for this dish.");
+                    } else {
+                        for (IngredientPojo ing : ings) {
+                            System.out.println(ing);
+                        }
+                    }
+                }
+                case 13 -> exit = true;
+                default -> System.out.println("Invalid choice.");
+            }
+            System.out.println();
+        }
+    }
+}
