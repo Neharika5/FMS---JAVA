@@ -1,0 +1,7 @@
+public void addIngredient(IngredientPojo ing){ dao.addIngredient(ing); }
+    public void addIngredientToDish(String dishId, String ingredientId){
+        dao.addIngredientToDish(dishId, ingredientId);
+    }
+    public List<IngredientPojo> getIngredientsByDish(String dishId){
+        return dao.getIngredientsByDish(dishId);
+    }
