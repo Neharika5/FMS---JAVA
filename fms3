@@ -1,0 +1,15 @@
+@Override
+public List<IngredientPojo> getIngredientsByDish(String dishId) {
+    List<String> ingredientIds = dishToIngredientIds.get(dishId);
+    if (ingredientIds == null) {
+        return new ArrayList<>();
+    }
+
+    List<IngredientPojo> result = new ArrayList<>();
+    for (IngredientPojo ing : ingredients) {
+        if (ingredientIds.contains(ing.getIngredientId())) {
+            result.add(ing);
+        }
+    }
+    return result;
+}
