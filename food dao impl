@@ -1,0 +1,262 @@
+package dao;
+
+import pojo.FoodPojo;
+import pojo.IngredientPojo;
+import util.DbUtil;
+
+import java.sql.*;
+import java.util.*;
+
+public class FoodDaoImpl implements FoodDao {
+
+    @Override
+    public List<FoodPojo> getAllDishes() {
+        List<FoodPojo> dishes = new ArrayList<>();
+        Connection con = null;
+
+        try {
+            con = DbUtil.getConnection();
+
+            // 1) Load cuisines (id -> name)
+            Map<String,String> cuisineMap = new HashMap<>();
+            Statement cs = con.createStatement();
+            ResultSet crs = cs.executeQuery("SELECT * FROM CUISINE");
+            while (crs.next()) {
+                cuisineMap.put(crs.getString("cuisine_id"), crs.getString("cuisine_name"));
+            }
+            crs.close(); cs.close();
+
+            // 2) Load all dishes
+            Statement ds = con.createStatement();
+            ResultSet drs = ds.executeQuery("SELECT * FROM DISH");
+            while (drs.next()) {
+                String dId = drs.getString("dish_id");
+                String name = drs.getString("dish_name");
+                String cuisineId = drs.getString("cuisine_id");
+                double price = drs.getDouble("price");
+                boolean veg = drs.getBoolean("vegetarian");
+                int pop = drs.getInt("popularity");
+
+                String cuisineName = cuisineMap.get(cuisineId);
+                FoodPojo dish = new FoodPojo(name, dId, cuisineName, price, veg, pop);
+                dishes.add(dish);
+            }
+            drs.close(); ds.close();
+
+            // 3) Load ingredients
+            Map<String, IngredientPojo> ingMap = new HashMap<>();
+            Statement is = con.createStatement();
+            ResultSet irs = is.executeQuery("SELECT * FROM INGREDIENT");
+            while (irs.next()) {
+                String iId = irs.getString("ingredient_id");
+                String iname = irs.getString("ingredient_name");
+                ingMap.put(iId, new IngredientPojo(iId, iname));
+            }
+            irs.close(); is.close();
+
+            // 4) Load dish_ingredient mappings
+            Statement ms = con.createStatement();
+            ResultSet mrs = ms.executeQuery("SELECT * FROM DISH_INGREDIENT");
+            while (mrs.next()) {
+                String dId = mrs.getString("dish_id");
+                String iId = mrs.getString("ingredient_id");
+
+                for (FoodPojo dish : dishes) {
+                    if (dish.getDishId().equals(dId)) {
+                        dish.getIngredients().add(ingMap.get(iId));
+                    }
+                }
+            }
+            mrs.close(); ms.close();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DbUtil.close(con);
+        }
+
+        return dishes;
+    }
+
+    @Override
+    public void addDish(FoodPojo dish) {
+        Connection con = null;
+        try {
+            con = DbUtil.getConnection();
+
+            // get cuisine_id from cuisine_name
+            String cuisineId = null;
+            PreparedStatement ps1 = con.prepareStatement(
+                    "SELECT cuisine_id FROM CUISINE WHERE cuisine_name = ?");
+            ps1.setString(1, dish.getCuisine());
+            ResultSet rs = ps1.executeQuery();
+            if (rs.next()) {
+                cuisineId = rs.getString("cuisine_id");
+            }
+            rs.close(); ps1.close();
+
+            if (cuisineId != null) {
+                PreparedStatement ps = con.prepareStatement(
+                        "INSERT INTO DISH(dish_id, dish_name, cuisine_id, price, vegetarian, popularity) VALUES (?,?,?,?,?,?)");
+                ps.setString(1, dish.getDishId());
+                ps.setString(2, dish.getDishName());
+                ps.setString(3, cuisineId);
+                ps.setDouble(4, dish.getPrice());
+                ps.setBoolean(5, dish.isVegetarian());
+                ps.setInt(6, dish.getPopularity());
+                ps.executeUpdate();
+                ps.close();
+            }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DbUtil.close(con);
+        }
+    }
+
+    @Override
+    public void updateDishPrice(String id, double newPrice) {
+        Connection con = null;
+        try {
+            con = DbUtil.getConnection();
+            PreparedStatement ps = con.prepareStatement(
+                    "UPDATE DISH SET price = ? WHERE dish_id = ?");
+            ps.setDouble(1, newPrice);
+            ps.setString(2, id);
+            ps.executeUpdate();
+            ps.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DbUtil.close(con);
+        }
+    }
+
+    @Override
+    public void deleteDish(String id) {
+        Connection con = null;
+        try {
+            con = DbUtil.getConnection();
+            // delete from mapping table first (FK constraint)
+            PreparedStatement ps1 = con.prepareStatement(
+                    "DELETE FROM DISH_INGREDIENT WHERE dish_id = ?");
+            ps1.setString(1, id);
+            ps1.executeUpdate();
+            ps1.close();
+
+            // then delete from dish table
+            PreparedStatement ps2 = con.prepareStatement(
+                    "DELETE FROM DISH WHERE dish_id = ?");
+            ps2.setString(1, id);
+            ps2.executeUpdate();
+            ps2.close();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DbUtil.close(con);
+        }
+    }
+
+    @Override
+    public List<FoodPojo> sortByPopularity() {
+        List<FoodPojo> list = getAllDishes();
+        list.sort((d1, d2) -> Integer.compare(d2.getPopularity(), d1.getPopularity()));
+        return list;
+    }
+
+    @Override
+    public List<FoodPojo> filterByCuisine(String cuisine) {
+        List<FoodPojo> list = getAllDishes();
+        List<FoodPojo> result = new ArrayList<>();
+        for (FoodPojo fp : list) {
+            if (fp.getCuisine().equalsIgnoreCase(cuisine)) {
+                result.add(fp);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public List<FoodPojo> filterByVeg(boolean veg) {
+        List<FoodPojo> list = getAllDishes();
+        List<FoodPojo> result = new ArrayList<>();
+        for (FoodPojo fp : list) {
+            if (fp.isVegetarian() == veg) {
+                result.add(fp);
+            }
+        }
+        return result;
+    }
+
+    @Override
+    public long countByCuisine(String cuisine) {
+        return filterByCuisine(cuisine).size();
+    }
+
+    @Override
+    public void addIngredient(IngredientPojo ingredient) {
+        Connection con = null;
+        try {
+            con = DbUtil.getConnection();
+            PreparedStatement ps = con.prepareStatement(
+                    "INSERT INTO INGREDIENT(ingredient_id, ingredient_name) VALUES (?,?)");
+            ps.setString(1, ingredient.getIngredientId());
+            ps.setString(2, ingredient.getIngredientName());
+            ps.executeUpdate();
+            ps.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DbUtil.close(con);
+        }
+    }
+
+    @Override
+    public void addIngredientToDish(String dishId, String ingredientId) {
+        Connection con = null;
+        try {
+            con = DbUtil.getConnection();
+            PreparedStatement ps = con.prepareStatement(
+                    "INSERT INTO DISH_INGREDIENT(dish_id, ingredient_id) VALUES (?,?)");
+            ps.setString(1, dishId);
+            ps.setString(2, ingredientId);
+            ps.executeUpdate();
+            ps.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DbUtil.close(con);
+        }
+    }
+
+    @Override
+    public List<IngredientPojo> getIngredientsByDish(String dishId) {
+        Connection con = null;
+        List<IngredientPojo> result = new ArrayList<>();
+
+        try {
+            con = DbUtil.getConnection();
+            PreparedStatement ps = con.prepareStatement(
+                    "SELECT i.ingredient_id, i.ingredient_name " +
+                            "FROM INGREDIENT i " +
+                            "JOIN DISH_INGREDIENT di ON i.ingredient_id = di.ingredient_id " +
+                            "WHERE di.dish_id = ?");
+            ps.setString(1, dishId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                result.add(new IngredientPojo(
+                        rs.getString("ingredient_id"),
+                        rs.getString("ingredient_name")));
+            }
+            rs.close(); ps.close();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            DbUtil.close(con);
+        }
+
+        return result;
+    }
+}
