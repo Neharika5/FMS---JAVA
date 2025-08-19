@@ -1,0 +1,37 @@
+-- Drop old tables (if they exist)
+DROP TABLE DISH_INGREDIENT;
+DROP TABLE INGREDIENT;
+DROP TABLE DISH;
+DROP TABLE CUISINE;
+
+-- CUISINE table
+CREATE TABLE CUISINE (
+    cuisine_id   VARCHAR2(10) PRIMARY KEY,
+    cuisine_name VARCHAR2(50)
+);
+
+-- DISH table
+CREATE TABLE DISH (
+    dish_id      VARCHAR2(10) PRIMARY KEY,
+    dish_name    VARCHAR2(50),
+    cuisine_id   VARCHAR2(10),
+    price        FLOAT,
+    vegetarian   CHAR(1),
+    popularity   NUMBER(3),
+    FOREIGN KEY (cuisine_id) REFERENCES CUISINE(cuisine_id)
+);
+
+-- INGREDIENT table
+CREATE TABLE INGREDIENT (
+    ingredient_id   VARCHAR2(10) PRIMARY KEY,
+    ingredient_name VARCHAR2(50)
+);
+
+-- MAPPING table
+CREATE TABLE DISH_INGREDIENT (
+    dish_id       VARCHAR2(10),
+    ingredient_id VARCHAR2(10),
+    PRIMARY KEY (dish_id, ingredient_id),
+    FOREIGN KEY (dish_id) REFERENCES DISH(dish_id),
+    FOREIGN KEY (ingredient_id) REFERENCES INGREDIENT(ingredient_id)
+);
